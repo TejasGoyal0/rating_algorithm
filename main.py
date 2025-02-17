@@ -1,19 +1,26 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from typing import List
 from ratingAlgorithm import TimeDecayReputation
 
 app = FastAPI()
-reputation_system = TimeDecayReputation()
 
-class Transaction(BaseModel):
-    order_value: float
+# Define request body schema
+class Order(BaseModel):
+    order_value: int
     return_days: int
 
-@app.post("/update_score/")
-def update_score(transaction: Transaction):
-    new_score = reputation_system.update_score(transaction.order_value, transaction.return_days)
-    return {"updated_rating": round(new_score, 2)}
+class OrdersRequest(BaseModel):
+    transactions: List[Order]
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Initialize reputation system
+reputation_system = TimeDecayReputation()
+
+@app.post("/update-score")
+def update_score(data: OrdersRequest):
+    scores = []
+    for order in data.transactions:
+        new_score = reputation_system.update_score(order.order_value, order.return_days)
+        scores.append({"order_value": order.order_value, "return_days": order.return_days, "updated_score": new_score})
+    
+    return {"updated_scores": scores}
